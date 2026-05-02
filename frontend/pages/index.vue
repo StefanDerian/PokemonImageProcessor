@@ -1,29 +1,17 @@
 <script setup lang="ts">
 const config = useRuntimeConfig()
 const route = useRoute()
-const { state, connect, reset } = useJobStatus()
 
-let eventSource: EventSource | null = null
+const jobIds = ref<string[]>([])
 
 onMounted(() => {
   const jobId = route.query.jobId as string | undefined
-  if (!jobId) return
-
-  eventSource = new EventSource(`/api/events/${jobId}`)
-
-  eventSource.addEventListener('job_update', (e: MessageEvent) => {
-    const data = JSON.parse(e.data)
-    connect(data.job_id ?? jobId)
-  })
-
-  eventSource.onerror = () => {
-    eventSource?.close()
-  }
+  if (jobId) jobIds.value.push(jobId)
 })
 
-onUnmounted(() => {
-  eventSource?.close()
-})
+function removeJob(jobId: string) {
+  jobIds.value = jobIds.value.filter(id => id !== jobId)
+}
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
@@ -47,7 +35,6 @@ function setFile(file: File) {
   selectedFile.value = file
   previewUrl.value = URL.createObjectURL(file)
   uploadError.value = null
-  reset()
 }
 
 async function analyzeCard() {
@@ -68,34 +55,16 @@ async function analyzeCard() {
     if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`)
 
     const { job_id } = await res.json()
-    connect(job_id)
+    jobIds.value.push(job_id)
+
+    selectedFile.value = null
+    previewUrl.value = null
+    if (fileInput.value) fileInput.value.value = ''
   } catch (err: any) {
     uploadError.value = err.message
   } finally {
     isUploading.value = false
   }
-}
-
-function startOver() {
-  selectedFile.value = null
-  previewUrl.value = null
-  uploadError.value = null
-  reset()
-  if (fileInput.value) fileInput.value.value = ''
-}
-
-const conditionColor: Record<string, string> = {
-  Mint: 'bg-green-100 text-green-800',
-  Good: 'bg-blue-100 text-blue-800',
-  Played: 'bg-yellow-100 text-yellow-800',
-  Damaged: 'bg-red-100 text-red-800',
-}
-
-const statusLabel: Record<string, string> = {
-  pending: 'Queued',
-  processing: 'Analyzing…',
-  completed: 'Done',
-  failed: 'Failed',
 }
 </script>
 
@@ -111,7 +80,6 @@ const statusLabel: Record<string, string> = {
 
       <!-- Upload zone -->
       <div
-        v-if="!state.status || state.status === 'idle'"
         class="border-2 border-dashed rounded-2xl p-10 text-center transition-colors"
         :class="isDragging ? 'border-indigo-400 bg-indigo-950/30' : 'border-gray-700 hover:border-gray-500'"
         @dragover.prevent="isDragging = true"
@@ -159,95 +127,14 @@ const statusLabel: Record<string, string> = {
         {{ uploadError }}
       </div>
 
-      <!-- Status panel -->
-      <div v-if="state.status !== 'idle'" class="mt-8 space-y-6">
-
-        <!-- Status bar -->
-        <div class="flex items-center justify-between p-4 rounded-xl bg-gray-900 border border-gray-800">
-          <div class="flex items-center gap-3">
-            <!-- Spinner -->
-            <svg
-              v-if="state.status === 'pending' || state.status === 'processing'"
-              class="w-5 h-5 text-indigo-400 animate-spin"
-              fill="none" viewBox="0 0 24 24"
-            >
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-            </svg>
-            <span v-else-if="state.status === 'completed'" class="text-green-400 text-lg">✓</span>
-            <span v-else class="text-red-400 text-lg">✗</span>
-
-            <span class="font-medium">{{ statusLabel[state.status] }}</span>
-          </div>
-
-          <button
-            class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-            @click="startOver"
-          >
-            Start over
-          </button>
-        </div>
-
-        <!-- Results -->
-        <div v-if="state.status === 'completed'" class="space-y-6">
-
-          <!-- Images side by side -->
-          <div class="grid grid-cols-2 gap-4">
-            <div class="space-y-2">
-              <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Original</p>
-              <img
-                v-if="state.originalImageUrl"
-                :src="state.originalImageUrl"
-                alt="Original card"
-                class="w-full rounded-xl object-contain bg-gray-900"
-              />
-            </div>
-            <div class="space-y-2">
-              <p class="text-xs text-gray-500 uppercase tracking-wider font-medium">Annotated</p>
-              <img
-                v-if="state.annotatedImageUrl"
-                :src="state.annotatedImageUrl"
-                alt="Annotated card"
-                class="w-full rounded-xl object-contain bg-gray-900"
-              />
-            </div>
-          </div>
-
-          <!-- Damage report -->
-          <div v-if="state.damageReport" class="p-5 rounded-xl bg-gray-900 border border-gray-800 space-y-4">
-            <div class="flex items-center justify-between">
-              <h2 class="font-semibold">Damage Report</h2>
-              <span
-                class="px-3 py-1 rounded-full text-xs font-semibold"
-                :class="conditionColor[state.damageReport.condition] ?? 'bg-gray-700 text-gray-300'"
-              >
-                {{ state.damageReport.condition }}
-              </span>
-            </div>
-
-            <p class="text-sm text-gray-400">
-              {{ state.damageReport.total_issues === 0
-                ? 'No damage detected — card looks great!'
-                : `${state.damageReport.total_issues} issue${state.damageReport.total_issues > 1 ? 's' : ''} detected` }}
-            </p>
-
-            <ul v-if="state.damageReport.issues.length" class="divide-y divide-gray-800">
-              <li
-                v-for="(issue, i) in state.damageReport.issues"
-                :key="i"
-                class="py-3 flex items-center justify-between text-sm"
-              >
-                <span class="text-gray-200">{{ issue.label }}</span>
-                <span class="text-gray-500">{{ Math.round(issue.confidence * 100) }}% confidence</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Failed state -->
-        <div v-if="state.status === 'failed'" class="p-4 rounded-xl bg-red-950/50 border border-red-700 text-red-300 text-sm">
-          Processing failed{{ state.error ? `: ${state.error}` : '.' }}
-        </div>
+      <!-- Job cards -->
+      <div v-if="jobIds.length" class="mt-8 space-y-4">
+        <JobStatusCard
+          v-for="id in jobIds"
+          :key="id"
+          :job-id="id"
+          @remove="removeJob"
+        />
       </div>
 
     </div>
