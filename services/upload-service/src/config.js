@@ -9,12 +9,12 @@ module.exports = {
     queueUrl: process.env.SQS_QUEUE_URL,
   },
   s3: {
-    endpoint: process.env.MINIO_USE_SSL === 'false'
-      ? `http://${process.env.MINIO_ENDPOINT}`
-      : `https://${process.env.MINIO_ENDPOINT}`,
+    endpoint: process.env.S3_USE_SSL === 'false'
+      ? `http://${process.env.S3_ENDPOINT}`
+      : `https://${process.env.S3_ENDPOINT}`,
     region: 'us-east-1',
-    bucket: process.env.MINIO_BUCKET || 'pokemon-cards',
-    accessKeyId: process.env.MINIO_ACCESS_KEY,
-    secretAccessKey: process.env.MINIO_SECRET_KEY,
+    bucket: 'raw',
+    accessKeyId: process.env.S3_ACCESS_KEY,
+    secretAccessKey: process.env.S3_SECRET_KEY,
   },
 }

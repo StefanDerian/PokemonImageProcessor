@@ -23,7 +23,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
   const imageKey = `originals/${jobId}.${ext}`
 
   try {
-    // await uploadFile(imageKey, req.file.buffer, req.file.mimetype)
+    await uploadFile(imageKey, req.file.buffer, req.file.mimetype)
 
     // await db.query(
     //   `INSERT INTO jobs (id, status, image_key, created_at) VALUES ($1, $2, $3, NOW())`,
