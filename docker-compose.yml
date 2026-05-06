@@ -22,9 +22,11 @@ services:
       - "4566:4566"
     environment:
       LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
-      SERVICES: sqs
+      SERVICES: sqs,s3
+      PERSISTENCE: 1
     volumes:
       - ./infrastructure/localstack/init.sh:/etc/localstack/init/ready.d/init.sh
+      - localstack_data:/var/lib/localstack
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
       interval: 5s
@@ -86,11 +88,10 @@ services:
       AWS_SECRET_ACCESS_KEY: "test"
       AWS_DEFAULT_REGION: "us-east-1"
       SQS_QUEUE_URL: "http://localstack:4566/000000000000/pokemon-processing"
-      MINIO_ENDPOINT: "minio:9000"
-      MINIO_ACCESS_KEY: "minioadmin"
-      MINIO_SECRET_KEY: "minioadmin"
-      MINIO_BUCKET: "pokemon-cards"
-      MINIO_USE_SSL: "false"
+      S3_ENDPOINT: "http://localstack:4566"
+      S3_ACCESS_KEY: "test"
+      S3_SECRET_KEY: "test123"
+      S3_USE_SSL: "false"
     volumes:
       - ./services/upload-service/:/app
       - /app/node_modules
@@ -157,3 +158,4 @@ services:
 volumes:
   postgres_data:
   minio_data:
+  localstack_data:
