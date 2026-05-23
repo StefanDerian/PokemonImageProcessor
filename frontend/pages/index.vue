@@ -5,8 +5,11 @@ const route = useRoute()
 const jobIds = ref<string[]>([])
 
 onMounted(() => {
-  const jobId = route.query.jobId as string | undefined
-  if (jobId) jobIds.value.push(jobId)
+  // const jobId = route.query.jobId as string | undefined
+  // if (jobId) jobIds.value.push(jobId)
+
+  // TODO: set statuses for each processing on refresh
+
 })
 
 function removeJob(jobId: string) {

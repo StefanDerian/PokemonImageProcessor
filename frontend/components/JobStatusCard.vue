@@ -45,6 +45,7 @@ onMounted(() => {
   es = new EventSource(`/api/events/${props.jobId}`)
 
   es.addEventListener('job_update', (e: MessageEvent) => {
+    console.log('Received job update:', e.data);
     if (!e.data) return
     const data = JSON.parse(e.data)
 
@@ -55,14 +56,9 @@ onMounted(() => {
     if (data.error) error.value = data.error
 
     if (data.status === 'processing') addToast('Analyzing card…', 'info')
-    if (data.status === 'completed') addToast('Analysis complete!', 'success')
-    if (data.status === 'failed') addToast(data.error ?? 'Processing failed', 'error')
-  })
-
-  es.addEventListener('done', () => es?.close())
-  es.onerror = () => {
-    if (status.value === 'completed' || status.value === 'failed') es?.close()
-  }
+    if (data.status === 'completed') addToast('Analysis complete!', 'success'); es?.close();
+    if (data.status === 'failed') addToast(data.error ?? 'Processing failed', 'error'); es?.close();
+  });
 })
 
 onUnmounted(() => es?.close())
